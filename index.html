@@ -1,17 +1,153 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-        <title>Change the Emojis</title>
-        <style>
-            canvas {
-                border: 1px solid black;
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: black;
+        }
+        .emoji {
+            font-size: 120px;
+            cursor: pointer;
+            position: absolute;
+            user-select: none;
+            color: white;
+            width: 120px;
+            height: 120px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <script>
+        const emojis = ['😀', '😎', '🤖', '👻', '🐶', '🐱', '🦁', '🐸', '🌟', '🎨', '🎮', '🎸'];
+        const container = document.getElementById('container');
+        const emojiSize = 120;
+        let emojiElements = [];
+
+        class MovingEmoji {
+            constructor(element) {
+                this.element = element;
+                this.x = Math.random() * (window.innerWidth - emojiSize);
+                this.y = Math.random() * (window.innerHeight - emojiSize);
+                this.speedX = (Math.random() - 0.5) * 1.5;
+                this.speedY = (Math.random() - 0.5) * 1.5;
+                this.radius = emojiSize / 2;
+                this.element.style.left = this.x + 'px';
+                this.element.style.top = this.y + 'px';
             }
-        </style>
-    </head>
-    <body>
-        <canvas id="emojiCanvas" width="600" height="400"></canvas>
-        <script src="emojis.js"></script>
-    </body>
+
+            checkCollision(other) {
+                const dx = (this.x + this.radius) - (other.x + other.radius);
+                const dy = (this.y + this.radius) - (other.y + other.radius);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < this.radius + other.radius) {
+                    // Collision detected - calculate new velocities
+                    const angle = Math.atan2(dy, dx);
+                    const sin = Math.sin(angle);
+                    const cos = Math.cos(angle);
+
+                    // Rotate velocities
+                    const vx1 = this.speedX * cos + this.speedY * sin;
+                    const vy1 = this.speedY * cos - this.speedX * sin;
+                    const vx2 = other.speedX * cos + other.speedY * sin;
+                    const vy2 = other.speedY * cos - other.speedX * sin;
+
+                    // Swap the velocities
+                    this.speedX = vx2 * cos - vy1 * sin;
+                    this.speedY = vy1 * cos + vx2 * sin;
+                    other.speedX = vx1 * cos - vy2 * sin;
+                    other.speedY = vy2 * cos + vx1 * sin;
+
+                    // Move emojis apart to prevent sticking
+                    const overlap = (this.radius + other.radius - distance) / 2;
+                    const moveX = overlap * Math.cos(angle);
+                    const moveY = overlap * Math.sin(angle);
+                    
+                    this.x += moveX;
+                    this.y += moveY;
+                    other.x -= moveX;
+                    other.y -= moveY;
+                }
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                // Bounce off walls
+                if (this.x <= 0 || this.x >= window.innerWidth - emojiSize) {
+                    this.speedX *= -1;
+                    this.x = Math.max(0, Math.min(this.x, window.innerWidth - emojiSize));
+                }
+                if (this.y <= 0 || this.y >= window.innerHeight - emojiSize) {
+                    this.speedY *= -1;
+                    this.y = Math.max(0, Math.min(this.y, window.innerHeight - emojiSize));
+                }
+
+                this.element.style.left = this.x + 'px';
+                this.element.style.top = this.y + 'px';
+            }
+        }
+
+        function createEmoji() {
+            const span = document.createElement('span');
+            span.className = 'emoji';
+            span.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            
+            span.addEventListener('click', function() {
+                let newEmoji;
+                do {
+                    newEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+                } while (newEmoji === this.textContent);
+                this.textContent = newEmoji;
+                
+                this.style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 200);
+            });
+            
+            return new MovingEmoji(span);
+        }
+
+        function init() {
+            container.innerHTML = '';
+            emojiElements = [];
+            
+            for (let i = 0; i < 10; i++) {
+                const emoji = createEmoji();
+                container.appendChild(emoji.element);
+                emojiElements.push(emoji);
+            }
+        }
+
+        function animate() {
+            emojiElements.forEach(emoji => emoji.update());
+            
+            // Check collisions between all pairs of emojis
+            for (let i = 0; i < emojiElements.length; i++) {
+                for (let j = i + 1; j < emojiElements.length; j++) {
+                    emojiElements[i].checkCollision(emojiElements[j]);
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        init();
+        animate();
+
+        window.addEventListener('resize', init);
+    </script>
+</body>
 </html>
